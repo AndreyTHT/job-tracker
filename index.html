@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Трекер откликов</title>
+<style>
+  :root{
+    --bg: #0f1210;
+    --panel: #161b18;
+    --panel-2: #1c2320;
+    --line: #2a322d;
+    --text: #e8ece7;
+    --text-dim: #8f9a92;
+    --accent: #7fd858;
+    --accent-dim: #3f6b2f;
+    --amber: #d8a84f;
+    --red: #d8654f;
+    --blue: #5f9ad8;
+    --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
+    background-size: 22px 22px;
+    color: var(--text);
+    font-family: var(--sans);
+    min-height:100vh;
+    padding-bottom: 60px;
+  }
+  header{
+    padding: 36px 32px 24px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top:0;
+    background: rgba(15,18,16,0.92);
+    backdrop-filter: blur(6px);
+    z-index: 20;
+  }
+  .header-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  .title-block .eyebrow{
+    font-family: var(--mono);
+    font-size:12px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  h1{
+    margin:0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .stats{
+    display:flex;
+    gap:24px;
+    font-family: var(--mono);
+    font-size:13px;
+    color: var(--text-dim);
+  }
+  .stats b{
+    color: var(--text);
+    font-size:20px;
+    display:block;
+    font-family: var(--sans);
+  }
+  main{
+    max-width:1400px;
+    margin: 32px auto;
+    padding: 0 32px;
+  }
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .filters{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .filter-btn{
+    background: var(--panel);
+    border:1px solid var(--line);
+    color: var(--text-dim);
+    padding:7px 14px;
+    border-radius:20px;
+    font-size:13px;
+    cursor:pointer;
+    font-family: var(--sans);
+    transition: all .15s ease;
+  }
+  .filter-btn:hover{ border-color: var(--accent-dim); color: var(--text); }
+  .filter-btn.active{ background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+
+  .btn-primary{
+    background: var(--accent);
+    color: #0f1210;
+    border:none;
+    padding:11px 20px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    font-family: var(--sans);
+    transition: transform .1s ease, box-shadow .15s ease;
+  }
+  .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 4px 16px rgba(127,216,88,0.25); }
+
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color: var(--text-dim);
+    padding:10px 16px;
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+    font-family: var(--sans);
+  }
+  .btn-ghost:hover{ border-color: var(--accent-dim); color:var(--text); }
+
+  .file-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 16px;
+    margin-bottom:20px;
+    font-family: var(--mono);
+    font-size:12.5px;
+    flex-wrap:wrap;
+  }
+  .file-bar .fb-status{ display:flex; align-items:center; gap:8px; color: var(--text-dim); }
+  .file-bar .fb-status .fb-dot{ width:7px; height:7px; border-radius:50%; background: var(--text-dim); flex-shrink:0; }
+  .file-bar.linked .fb-status .fb-dot{ background: var(--accent); }
+  .file-bar.error .fb-status .fb-dot{ background: var(--red); }
+  .file-bar .fb-actions{ display:flex; gap:8px; }
+  .file-bar .fb-actions button{
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    color: var(--text);
+    padding:6px 12px;
+    border-radius:6px;
+    font-size:12px;
+    cursor:pointer;
+    font-family: var(--sans);
+  }
+  .file-bar .fb-actions button:hover{ border-color: var(--accent-dim); }
+
+  .empty{
+    border: 1px dashed var(--line);
+    border-radius:12px;
+    padding: 60px 20px;
+    text-align:center;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size:14px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap:16px;
+  }
+
+  .card{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .card:hover{ border-color:#3a443d; }
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .company-name{
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .accred-badge{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.05em;
+    padding:3px 8px;
+    border-radius:5px;
+    white-space:nowrap;
+    text-transform:uppercase;
+    margin-top:4px;
+    display:inline-block;
+  }
+  .accred-yes{ background: rgba(127,216,88,0.12); color: var(--accent); border:1px solid var(--accent-dim); }
+  .accred-no{ background: rgba(216,101,79,0.1); color: var(--red); border:1px solid rgba(216,101,79,0.4); }
+
+  .card-actions{ display:flex; gap:6px; }
+  .icon-btn{
+    background:transparent;
+    border:none;
+    color: var(--text-dim);
+    cursor:pointer;
+    font-size:14px;
+    padding:4px 6px;
+    border-radius:6px;
+    line-height:1;
+  }
+  .icon-btn:hover{ background: var(--panel-2); color: var(--text); }
+
+  .location{
+    font-family: var(--mono);
+    font-size:12.5px;
+    color: var(--text-dim);
+    line-height:1.5;
+  }
+  .location .city{ color: var(--text); font-weight:600; }
+
+  .stack{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .chip{
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    color: var(--text);
+    font-size:11.5px;
+    padding:3px 9px;
+    border-radius:6px;
+    font-family: var(--mono);
+  }
+
+  .status-pill{
+    align-self:flex-start;
+    font-size:12px;
+    font-weight:600;
+    padding:6px 12px;
+    border-radius:20px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .status-pill .dot{ width:6px; height:6px; border-radius:50%; }
+
+  .status-not_reviewed{ background: rgba(143,154,146,0.14); color: var(--text-dim); }
+  .status-not_reviewed .dot{ background: var(--text-dim); }
+  .status-too_many_cons{ background: rgba(216,101,79,0.08); color: #b98072; }
+  .status-too_many_cons .dot{ background: #b98072; }
+  .status-applied{ background: rgba(95,154,216,0.12); color: var(--blue); }
+  .status-applied .dot{ background: var(--blue); }
+  .status-rejected_applied{ background: rgba(216,101,79,0.1); color: var(--red); }
+  .status-rejected_applied .dot{ background: var(--red); }
+  .status-interview{ background: rgba(216,168,79,0.12); color: var(--amber); }
+  .status-interview .dot{ background: var(--amber); }
+  .status-rejected_interview{ background: rgba(216,101,79,0.18); color: #f08a72; }
+  .status-rejected_interview .dot{ background: #f08a72; }
+  .status-offer{ background: rgba(127,216,88,0.22); color: #b7f39a; }
+  .status-offer .dot{ background: #b7f39a; }
+
+  .pros-cons{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+    border-top:1px solid var(--line);
+    padding-top:12px;
+  }
+  .pc-col .pc-label{
+    font-family: var(--mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .pc-col.pros .pc-label{ color: var(--accent); }
+  .pc-col.cons .pc-label{ color: var(--red); }
+  .pc-col ul{
+    margin:0;
+    padding-left:16px;
+    font-size:12.5px;
+    color: var(--text-dim);
+    line-height:1.6;
+  }
+  .pc-col li{ margin-bottom:2px; }
+
+  /* Modal */
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(5,7,6,0.75);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    z-index:100;
+    padding: 40px 16px;
+    overflow-y:auto;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    width:100%;
+    max-width:640px;
+    padding:28px;
+  }
+  .modal h2{
+    margin:0 0 20px;
+    font-size:20px;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-family: var(--mono);
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color: var(--text-dim);
+    margin-bottom:6px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%;
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    color: var(--text);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-family: var(--sans);
+    resize: vertical;
+  }
+  .field textarea{ min-height:70px; font-family: var(--sans); line-height:1.5; }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none;
+    border-color: var(--accent-dim);
+  }
+  .field-hint{ font-size:11px; color:var(--text-dim); margin-top:4px; }
+  .row-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:8px;
+    border-top:1px solid var(--line);
+    padding-top:18px;
+  }
+  select{ appearance:none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238f9a92'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position: right 12px center; }
+
+  @media (max-width: 600px){
+    header{ padding:24px 16px 18px; }
+    main{ padding:0 16px; }
+    .row-2{ grid-template-columns:1fr; }
+    .grid{ grid-template-columns: 1fr; }
+    h1{ font-size:24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div class="title-block">
+      <div class="eyebrow">// job_search.log</div>
+      <h1>Трекер откликов</h1>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<main>
+  <div class="file-bar" id="file-bar"></div>
+  <div class="toolbar">
+    <div class="filters" id="filters"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-ghost" onclick="exportBackup()">Скачать копию (JSON)</button>
+      <button class="btn-primary" onclick="openModal()">+ Добавить компанию</button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title">Новая компания</h2>
+    <form id="company-form">
+      <input type="hidden" id="edit-id">
+
+      <div class="field">
+        <label>Название компании</label>
+        <input type="text" id="f-name" required placeholder="ООО «Ромашка»">
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>Город</label>
+          <input type="text" id="f-city" placeholder="Самара">
+        </div>
+        <div class="field">
+          <label>Аккредитация Минцифры</label>
+          <select id="f-accred">
+            <option value="yes">Есть</option>
+            <option value="no">Нет</option>
+            <option value="unknown">Не знаю</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Полный адрес</label>
+        <input type="text" id="f-address" placeholder="ул. Ленина, д. 1, офис 200">
+      </div>
+
+      <div class="field">
+        <label>Стек технологий (через запятую)</label>
+        <input type="text" id="f-stack" placeholder="C#, ASP.NET Core, PostgreSQL, Angular">
+      </div>
+
+      <div class="field">
+        <label>Статус</label>
+        <select id="f-status">
+          <option value="not_reviewed">Не рассмотрено</option>
+          <option value="too_many_cons">Слишком много минусов</option>
+          <option value="applied">Подал резюме</option>
+          <option value="rejected_applied">Отказ (на этапе подачи)</option>
+          <option value="interview">Прошёл собеседование</option>
+          <option value="rejected_interview">Отказ (на этапе собеседования)</option>
+          <option value="offer">Оффер</option>
+        </select>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>Плюсы (каждый с новой строки)</label>
+          <textarea id="f-pros" placeholder="Гибкий график&#10;Интересный стек"></textarea>
+        </div>
+        <div class="field">
+          <label>Минусы (каждый с новой строки)</label>
+          <textarea id="f-cons" placeholder="Далеко ехать&#10;Испытательный срок 6 мес"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Отмена</button>
+        <button type="submit" class="btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="settings-overlay">
+  <div class="modal">
+    <h2>Подключение к GitHub</h2>
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-top:-8px;">
+      Данные хранятся в файле <code style="background:var(--panel-2);padding:2px 6px;border-radius:4px;">company.json</code> в твоём репозитории. Токен хранится только в этом браузере и уходит только к api.github.com.
+    </p>
+    <form id="settings-form">
+      <div class="field">
+        <label>GitHub username / организация</label>
+        <input type="text" id="s-owner" required placeholder="AndreyTHT">
+      </div>
+      <div class="field">
+        <label>Название репозитория</label>
+        <input type="text" id="s-repo" required placeholder="job-tracker">
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Путь к файлу</label>
+          <input type="text" id="s-path" required value="company.json">
+        </div>
+        <div class="field">
+          <label>Ветка</label>
+          <input type="text" id="s-branch" required value="main">
+        </div>
+      </div>
+      <div class="field">
+        <label>Personal Access Token</label>
+        <input type="password" id="s-token" required placeholder="ghp_...">
+        <div class="field-hint">Fine-grained токен с доступом Contents: Read and write только к этому репозиторию.</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" onclick="closeSettings()">Отмена</button>
+        <button type="submit" class="btn-primary">Подключить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const GH_CONFIG_KEY = 'job_tracker_gh_config_v1';
+let companies = [];
+let activeFilter = 'all';
+let ghConfig = JSON.parse(localStorage.getItem(GH_CONFIG_KEY) || 'null');
+let currentSha = null; // needed for GitHub's update API
+
+const STATUS_LABELS = {
+  not_reviewed: 'Не рассмотрено',
+  too_many_cons: 'Слишком много минусов',
+  applied: 'Подал резюме',
+  rejected_applied: 'Отказ (на этапе подачи)',
+  interview: 'Прошёл собеседование',
+  rejected_interview: 'Отказ (на этапе собеседования)',
+  offer: 'Оффер'
+};
+
+/* ---------- GitHub storage layer ---------- */
+
+function ghApiUrl(){
+  return `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}`;
+}
+
+function openSettings(){
+  if(ghConfig){
+    document.getElementById('s-owner').value = ghConfig.owner;
+    document.getElementById('s-repo').value = ghConfig.repo;
+    document.getElementById('s-path').value = ghConfig.path;
+    document.getElementById('s-branch').value = ghConfig.branch;
+    document.getElementById('s-token').value = ghConfig.token;
+  }
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+async function handleSettingsSubmit(e){
+  e.preventDefault();
+  ghConfig = {
+    owner: document.getElementById('s-owner').value.trim(),
+    repo: document.getElementById('s-repo').value.trim(),
+    path: document.getElementById('s-path').value.trim() || 'company.json',
+    branch: document.getElementById('s-branch').value.trim() || 'main',
+    token: document.getElementById('s-token').value.trim(),
+  };
+  localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(ghConfig));
+  closeSettings();
+  await loadFromGithub();
+}
+
+function disconnectGithub(){
+  if(!confirm('Отключить репозиторий? Токен будет удалён из этого браузера (файл на GitHub не изменится).')) return;
+  ghConfig = null;
+  currentSha = null;
+  companies = [];
+  localStorage.removeItem(GH_CONFIG_KEY);
+  render();
+  renderFileBar();
+}
+
+async function loadFromGithub(){
+  if(!ghConfig) { renderFileBar(); return; }
+  renderFileBar('loading');
+  try{
+    const res = await fetch(`${ghApiUrl()}?ref=${encodeURIComponent(ghConfig.branch)}&t=${Date.now()}`, {
+      headers: {
+        'Authorization': `Bearer ${ghConfig.token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+
+    if(res.status === 404){
+      companies = [];
+      currentSha = null;
+      renderFileBar('linked');
+      render();
+      return;
+    }
+    if(!res.ok){
+      throw new Error(`GitHub вернул ${res.status}`);
+    }
+
+    const data = await res.json();
+    currentSha = data.sha;
+    const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+    companies = content.trim() ? JSON.parse(content) : [];
+    renderFileBar('linked');
+    render();
+  }catch(err){
+    console.error(err);
+    renderFileBar('error', err.message);
+  }
+}
+
+async function writeToGithub(){
+  if(!ghConfig) return false;
+  renderFileBar('saving');
+  try{
+    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(companies, null, 2))));
+    const body = {
+      message: `Обновление company.json (${new Date().toLocaleString('ru-RU')})`,
+      content: contentB64,
+      branch: ghConfig.branch,
+    };
+    if(currentSha) body.sha = currentSha;
+
+    const res = await fetch(ghApiUrl(), {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${ghConfig.token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if(!res.ok){
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || `GitHub вернул ${res.status}`);
+    }
+
+    const data = await res.json();
+    currentSha = data.content.sha;
+    renderFileBar('linked');
+    return true;
+  }catch(err){
+    console.error(err);
+    renderFileBar('error', err.message);
+    return false;
+  }
+}
+
+function renderFileBar(state, errorMsg){
+  const bar = document.getElementById('file-bar');
+  if(!ghConfig){
+    bar.className = 'file-bar';
+    bar.innerHTML = `
+      <div class="fb-status"><span class="fb-dot"></span> Не подключено к GitHub — изменения не будут сохранены</div>
+      <div class="fb-actions"><button onclick="openSettings()">Подключить репозиторий</button></div>
+    `;
+    return;
+  }
+  if(state === 'loading'){
+    bar.className = 'file-bar';
+    bar.innerHTML = `<div class="fb-status"><span class="fb-dot"></span> Загрузка ${escapeHtml(ghConfig.path)}…</div>`;
+    return;
+  }
+  if(state === 'saving'){
+    bar.className = 'file-bar linked';
+    bar.innerHTML = `<div class="fb-status"><span class="fb-dot"></span> Сохранение в GitHub…</div>`;
+    return;
+  }
+  if(state === 'error'){
+    bar.className = 'file-bar error';
+    bar.innerHTML = `
+      <div class="fb-status"><span class="fb-dot"></span> Ошибка: ${escapeHtml(errorMsg || 'не удалось связаться с GitHub')}</div>
+      <div class="fb-actions">
+        <button onclick="loadFromGithub()">Повторить</button>
+        <button onclick="openSettings()">Настройки</button>
+      </div>
+    `;
+    return;
+  }
+  bar.className = 'file-bar linked';
+  bar.innerHTML = `
+    <div class="fb-status"><span class="fb-dot"></span> ${escapeHtml(ghConfig.owner)}/${escapeHtml(ghConfig.repo)} · ${escapeHtml(ghConfig.path)} — сохраняется автоматически</div>
+    <div class="fb-actions">
+      <button onclick="loadFromGithub()">Обновить</button>
+      <button onclick="openSettings()">Настройки</button>
+      <button onclick="disconnectGithub()">Отключить</button>
+    </div>
+  `;
+}
+
+async function save(){
+  render();
+  if(ghConfig){
+    await writeToGithub();
+  }
+}
+
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(companies, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'company.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openModal(id=null){
+  const overlay = document.getElementById('overlay');
+  const form = document.getElementById('company-form');
+  form.reset();
+  document.getElementById('edit-id').value = '';
+  document.getElementById('modal-title').textContent = 'Новая компания';
+
+  if(id){
+    const c = companies.find(x => x.id === id);
+    if(c){
+      document.getElementById('modal-title').textContent = 'Редактировать компанию';
+      document.getElementById('edit-id').value = c.id;
+      document.getElementById('f-name').value = c.name;
+      document.getElementById('f-city').value = c.city;
+      document.getElementById('f-address').value = c.address;
+      document.getElementById('f-accred').value = c.accred;
+      document.getElementById('f-stack').value = c.stack.join(', ');
+      document.getElementById('f-status').value = c.status;
+      document.getElementById('f-pros').value = c.pros.join('\n');
+      document.getElementById('f-cons').value = c.cons.join('\n');
+    }
+  }
+  overlay.classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+}
+
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'overlay') closeModal();
+});
+
+document.getElementById('company-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('edit-id').value;
+  const data = {
+    id: id || 'c_' + Date.now(),
+    name: document.getElementById('f-name').value.trim(),
+    city: document.getElementById('f-city').value.trim(),
+    address: document.getElementById('f-address').value.trim(),
+    accred: document.getElementById('f-accred').value,
+    stack: document.getElementById('f-stack').value.split(',').map(s => s.trim()).filter(Boolean),
+    status: document.getElementById('f-status').value,
+    pros: document.getElementById('f-pros').value.split('\n').map(s => s.trim()).filter(Boolean),
+    cons: document.getElementById('f-cons').value.split('\n').map(s => s.trim()).filter(Boolean),
+  };
+
+  if(id){
+    const idx = companies.findIndex(x => x.id === id);
+    companies[idx] = data;
+  } else {
+    companies.unshift(data);
+  }
+  save();
+  closeModal();
+});
+
+function deleteCompany(id){
+  if(confirm('Удалить эту компанию из списка?')){
+    companies = companies.filter(x => x.id !== id);
+    save();
+  }
+}
+
+function setFilter(f){
+  activeFilter = f;
+  render();
+}
+
+function renderFilters(){
+  const counts = { all: companies.length };
+  Object.keys(STATUS_LABELS).forEach(k => counts[k] = companies.filter(c => c.status === k).length);
+
+  const filters = [
+    { key: 'all', label: 'Все' },
+    ...Object.entries(STATUS_LABELS).map(([key, label]) => ({ key, label }))
+  ];
+
+  document.getElementById('filters').innerHTML = filters.map(f => `
+    <button class="filter-btn ${activeFilter === f.key ? 'active' : ''}" onclick="setFilter('${f.key}')">
+      ${f.label} (${counts[f.key] ?? 0})
+    </button>
+  `).join('');
+}
+
+function renderStats(){
+  const total = companies.length;
+  const interview = companies.filter(c => c.status === 'interview').length;
+  const offer = companies.filter(c => c.status === 'offer').length;
+  const accredYes = companies.filter(c => c.accred === 'yes').length;
+
+  document.getElementById('stats').innerHTML = `
+    <div><b>${total}</b>всего</div>
+    <div><b>${interview}</b>собеседований</div>
+    <div><b>${offer}</b>офферов</div>
+    <div><b>${accredYes}</b>с аккредитацией</div>
+  `;
+}
+
+function accredBadge(accred){
+  if(accred === 'yes') return `<span class="accred-badge accred-yes">✓ Аккредитована</span>`;
+  if(accred === 'no') return `<span class="accred-badge accred-no">✕ Нет аккредитации</span>`;
+  return `<span class="accred-badge" style="background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);">? Неизвестно</span>`;
+}
+
+function renderCard(c){
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <div class="company-name">${escapeHtml(c.name)}</div>
+          ${accredBadge(c.accred)}
+        </div>
+        <div class="card-actions">
+          <button class="icon-btn" onclick="openModal('${c.id}')" title="Редактировать">✎</button>
+          <button class="icon-btn" onclick="deleteCompany('${c.id}')" title="Удалить">✕</button>
+        </div>
+      </div>
+
+      ${(c.city || c.address) ? `
+      <div class="location">
+        ${c.city ? `<span class="city">${escapeHtml(c.city)}</span><br>` : ''}
+        ${escapeHtml(c.address || '')}
+      </div>` : ''}
+
+      ${c.stack.length ? `
+      <div class="stack">
+        ${c.stack.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+      </div>` : ''}
+
+      <div class="status-pill status-${c.status}">
+        <span class="dot"></span> ${STATUS_LABELS[c.status]}
+      </div>
+
+      ${(c.pros.length || c.cons.length) ? `
+      <div class="pros-cons">
+        <div class="pc-col pros">
+          <div class="pc-label">+ Плюсы</div>
+          <ul>${c.pros.map(p => `<li>${escapeHtml(p)}</li>`).join('') || '<li style="opacity:0.4">—</li>'}</ul>
+        </div>
+        <div class="pc-col cons">
+          <div class="pc-label">− Минусы</div>
+          <ul>${c.cons.map(p => `<li>${escapeHtml(p)}</li>`).join('') || '<li style="opacity:0.4">—</li>'}</ul>
+        </div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function render(){
+  renderStats();
+  renderFilters();
+
+  const filtered = activeFilter === 'all' ? companies : companies.filter(c => c.status === activeFilter);
+  const content = document.getElementById('content');
+
+  if(filtered.length === 0){
+    content.innerHTML = `<div class="empty">${companies.length === 0 ? 'Список пуст. Добавь первую компанию.' : 'Нет компаний с этим статусом.'}</div>`;
+    return;
+  }
+
+  content.innerHTML = `<div class="grid">${filtered.map(renderCard).join('')}</div>`;
+}
+
+renderFileBar();
+render();
+loadFromGithub();
+document.getElementById('settings-form').addEventListener('submit', handleSettingsSubmit);
+document.getElementById('settings-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'settings-overlay') closeSettings();
+});
+</script>
+
+</body>
+</html>
